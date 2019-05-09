@@ -41,6 +41,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
-
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        guard let components = NSURLComponents(url: url, resolvingAgainstBaseURL: true),
+            let scheme = components.scheme, let code = components.host, scheme == "nut" else {
+                print("Invalid URL or scheme is not 'nut'")
+                return false
+        }
+        
+        return true
+    }
+    
 }
 
