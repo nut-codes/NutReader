@@ -73,14 +73,33 @@ class NutCode {
         
         let extendedData = data.suffix(from: Nutrient.standard.count + 1)
         var iterator = extendedData.makeIterator()
-        
+		var servingSize: UInt8? = nil
+		var servingSizeExponent: Int8? = nil
+
         while let code = iterator.next(), let quantity = iterator.next() {
             if let (nutrient, mass) = result.decode(bytePair: (code, quantity)) {
                 result[keyPath: nutrient.keyPath] = mass
-            }
+			} else if let specialCode = SpecialCode(rawValue: code) {
+				switch specialCode {
+				case .servingSize:
+					servingSize = quantity
+					break;
+				case .servingSizeExponent:
+					servingSizeExponent = Int8(bitPattern: quantity)
+					break;
+				}
+			} else {
+				print("Unrecognized code")
+			}
         }
-        
-        return result
+
+		if let servingSize = servingSize {
+			let exponent = servingSizeExponent ?? 0
+
+			return Serving(food: result, mass: Float(servingSize << exponent))
+		} else {
+        	return result
+		}
     }
 }
 
@@ -117,20 +136,33 @@ extension Food {
         return Float(totalMass * Float(linearByte) / 255.0)
     }
 
+	func decode(logByte: UInt8, for nutrient: Nutrient) -> Float {
+		let quantity = Float(logByte)
+		let base = nutrient.base
+
+		let number = exp(quantity * log(base))
+
+		return number * nutrient.minimumRepresentableMass
+	}
+
     func decode(bytePair: (UInt8, UInt8)) -> (Nutrient, Float)? {
         guard let nutrient = Nutrient.decode(from: bytePair.0) else {
             print("unrecognized nutrient code")
             return nil
         }
-        
-        let quantity = Float(bytePair.1)
-        let base = nutrient.base
-
-        let number = exp(quantity * log(base))
-        let value = number * nutrient.minimumRepresentableMass
-        
-        return (nutrient, value)
+                
+        return (nutrient, decode(logByte: bytePair.1, for: nutrient))
     }
+}
+
+enum EncodingFormat {
+	case linear
+	case logarithmic
+}
+
+enum SpecialCode: UInt8 {
+	case servingSize = 0xF0
+	case servingSizeExponent = 0xF1
 }
 
 extension Nutrient {
@@ -145,7 +177,7 @@ extension Nutrient {
             return Array(Set(Nutrient.allCases).subtracting(Nutrient.standard))
         }
     }
-    
+
     var code: UInt8? {
         get {
             switch self {

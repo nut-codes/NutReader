@@ -43,13 +43,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
         guard let components = NSURLComponents(url: url, resolvingAgainstBaseURL: true),
-            let scheme = components.scheme, let code = components.host, scheme == "nut" else {
-                print("Invalid URL or scheme is not 'nut'")
-                return false
-        }
-        
+            let scheme = components.scheme, scheme == "nut", let foodOrServing = NutCode.parse(url: url) else {
+				return false
+		}
+
+		if let navigationController = window?.rootViewController as? UINavigationController, let viewController = navigationController.viewControllers.first as? ViewController {
+
+			if let food = foodOrServing as? Food {
+				viewController.food = food
+			} else if let serving = foodOrServing as? Serving {
+				viewController.food = serving.food
+			}
+		}
+
         return true
     }
-    
 }
 
